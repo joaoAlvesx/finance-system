@@ -1,0 +1,11 @@
+[Unit]
+Description=Agenda o backup diário do banco financeiro
+
+[Timer]
+OnCalendar=*-*-* 03:20:00 America/Campo_Grande
+Persistent=true
+RandomizedDelaySec=10m
+Unit=finance-backup.service
+
+[Install]
+WantedBy=timers.target

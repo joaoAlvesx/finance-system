@@ -1,0 +1,5 @@
+# Adicionar ao /opt/homelab/config/caddy/Caddyfile após revisão.
+http://finance.example.com {
+    import protegido
+    reverse_proxy finance-web:80
+}

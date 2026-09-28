@@ -1,0 +1,18 @@
+# Exemplo para ~/.hermes/config.yaml. O token abaixo é fictício.
+mcp_servers:
+  finance:
+    command: "/home/hermes/.local/share/finance-mcp/.venv/bin/finance-hermes-mcp"
+    env:
+      FINANCE_API_URL: "http://127.0.0.1:8000"
+      FINANCE_API_TOKEN: "fst_SUBSTITUA_PELO_TOKEN_GERADO"
+    tools:
+      include:
+        - consultar_saldo
+        - consultar_disponivel
+        - listar_transacoes
+        - listar_contas_futuras
+        - simular_gasto
+        - gerar_resumo_mensal
+        - sugerir_categoria
+      # Adicione registrar_transacao_manual e alterar_categoria somente se o
+      # token tiver finance:write e o usuário quiser habilitar escrita.

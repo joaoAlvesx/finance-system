@@ -1,0 +1,80 @@
+name: finance-production
+
+services:
+  api:
+    image: finance-system-api:0.6.0
+    container_name: finance-api
+    env_file:
+      - finance.env
+    ports:
+      - "127.0.0.1:18000:8000"
+    networks:
+      homelab:
+        aliases:
+          - finance-api
+          - api
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 18
+      start_period: 20s
+    restart: unless-stopped
+    mem_limit: 512m
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    image: finance-system-worker:0.6.0
+    container_name: finance-worker
+    env_file:
+      - finance.env
+    networks:
+      - homelab
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 512m
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    image: finance-system-web:0.6.0
+    container_name: finance-web
+    networks:
+      - homelab
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    mem_limit: 128m
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  homelab:
+    external: true
+    name: homelab

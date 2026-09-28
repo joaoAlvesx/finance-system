@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Finanças</title>
+  <desc id="description">Letra F em verde sobre fundo escuro</desc>
+  <rect width="512" height="512" fill="#0d1117"/>
+  <rect x="104" y="104" width="304" height="304" rx="92" fill="#46dea8"/>
+  <path d="M174 158c0-12 10-22 22-22h136c12 0 22 10 22 22v18c0 12-10 22-22 22H236v44h74c12 0 22 10 22 22v16c0 12-10 22-22 22h-74v70c0 12-10 22-22 22h-18c-12 0-22-10-22-22V158Z" fill="#07120e"/>
+</svg>

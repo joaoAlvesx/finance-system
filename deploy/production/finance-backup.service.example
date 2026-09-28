@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup diário do banco financeiro
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/homelab/finance/backup-finance.sh
+User=root
+Group=root

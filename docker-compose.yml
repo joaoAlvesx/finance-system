@@ -1,0 +1,141 @@
+name: finance-system
+
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-finance}
+      POSTGRES_USER: ${POSTGRES_USER:-finance_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-development-only}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - finance_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    image: finance-system-api:0.6.0
+    build:
+      context: ./backend
+      target: runtime
+    environment:
+      FINANCE_ENVIRONMENT: ${FINANCE_ENVIRONMENT:-local}
+      FINANCE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-finance_app}:${POSTGRES_PASSWORD:-local-development-only}@db:5432/${POSTGRES_DB:-finance}
+      FINANCE_TIMEZONE: ${FINANCE_TIMEZONE:-America/Campo_Grande}
+      FINANCE_LOG_LEVEL: ${FINANCE_LOG_LEVEL:-INFO}
+      FINANCE_DB_CONNECT_ATTEMPTS: ${FINANCE_DB_CONNECT_ATTEMPTS:-20}
+      FINANCE_DB_CONNECT_DELAY_SECONDS: ${FINANCE_DB_CONNECT_DELAY_SECONDS:-2}
+      FINANCE_PLUGGY_ENABLED: ${FINANCE_PLUGGY_ENABLED:-false}
+      FINANCE_PLUGGY_CLIENT_ID: ${FINANCE_PLUGGY_CLIENT_ID:-}
+      FINANCE_PLUGGY_CLIENT_SECRET: ${FINANCE_PLUGGY_CLIENT_SECRET:-}
+      FINANCE_PLUGGY_API_BASE_URL: ${FINANCE_PLUGGY_API_BASE_URL:-https://api.pluggy.ai}
+      FINANCE_PLUGGY_CLIENT_USER_ID: ${FINANCE_PLUGGY_CLIENT_USER_ID:-finance-system-personal}
+      FINANCE_PLUGGY_CONNECTOR_ID: ${FINANCE_PLUGGY_CONNECTOR_ID:-200}
+      FINANCE_PLUGGY_INCLUDE_SANDBOX: ${FINANCE_PLUGGY_INCLUDE_SANDBOX:-true}
+      FINANCE_PLUGGY_POLL_SECONDS: ${FINANCE_PLUGGY_POLL_SECONDS:-900}
+    ports:
+      - "127.0.0.1:${FINANCE_API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  worker:
+    image: finance-system-worker:0.6.0
+    build:
+      context: ./backend
+      target: worker
+    environment:
+      FINANCE_ENVIRONMENT: ${FINANCE_ENVIRONMENT:-local}
+      FINANCE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-finance_app}:${POSTGRES_PASSWORD:-local-development-only}@db:5432/${POSTGRES_DB:-finance}
+      FINANCE_TIMEZONE: ${FINANCE_TIMEZONE:-America/Campo_Grande}
+      FINANCE_LOG_LEVEL: ${FINANCE_LOG_LEVEL:-INFO}
+      FINANCE_DB_CONNECT_ATTEMPTS: ${FINANCE_DB_CONNECT_ATTEMPTS:-20}
+      FINANCE_DB_CONNECT_DELAY_SECONDS: ${FINANCE_DB_CONNECT_DELAY_SECONDS:-2}
+      FINANCE_TELEGRAM_ENABLED: ${FINANCE_TELEGRAM_ENABLED:-false}
+      FINANCE_TELEGRAM_BOT_TOKEN: ${FINANCE_TELEGRAM_BOT_TOKEN:-}
+      FINANCE_TELEGRAM_CHAT_ID: ${FINANCE_TELEGRAM_CHAT_ID:-}
+      FINANCE_TELEGRAM_POLL_SECONDS: ${FINANCE_TELEGRAM_POLL_SECONDS:-20}
+      FINANCE_TELEGRAM_SCAN_SECONDS: ${FINANCE_TELEGRAM_SCAN_SECONDS:-15}
+      FINANCE_TELEGRAM_MAX_ATTEMPTS: ${FINANCE_TELEGRAM_MAX_ATTEMPTS:-3}
+      FINANCE_PLUGGY_ENABLED: ${FINANCE_PLUGGY_ENABLED:-false}
+      FINANCE_PLUGGY_CLIENT_ID: ${FINANCE_PLUGGY_CLIENT_ID:-}
+      FINANCE_PLUGGY_CLIENT_SECRET: ${FINANCE_PLUGGY_CLIENT_SECRET:-}
+      FINANCE_PLUGGY_API_BASE_URL: ${FINANCE_PLUGGY_API_BASE_URL:-https://api.pluggy.ai}
+      FINANCE_PLUGGY_CLIENT_USER_ID: ${FINANCE_PLUGGY_CLIENT_USER_ID:-finance-system-personal}
+      FINANCE_PLUGGY_CONNECTOR_ID: ${FINANCE_PLUGGY_CONNECTOR_ID:-200}
+      FINANCE_PLUGGY_INCLUDE_SANDBOX: ${FINANCE_PLUGGY_INCLUDE_SANDBOX:-true}
+      FINANCE_PLUGGY_POLL_SECONDS: ${FINANCE_PLUGGY_POLL_SECONDS:-900}
+      FINANCE_PLUGGY_FULL_SYNC_SECONDS: ${FINANCE_PLUGGY_FULL_SYNC_SECONDS:-86400}
+      FINANCE_PLUGGY_WORKER_SCAN_SECONDS: ${FINANCE_PLUGGY_WORKER_SCAN_SECONDS:-15}
+      FINANCE_PLUGGY_MAX_ATTEMPTS: ${FINANCE_PLUGGY_MAX_ATTEMPTS:-5}
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    image: finance-system-web:0.6.0
+    build:
+      context: ./frontend
+      target: runtime
+    ports:
+      - "127.0.0.1:${FINANCE_WEB_PORT:-5173}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db-test:
+    image: postgres:17-bookworm
+    profiles: ["test"]
+    environment:
+      POSTGRES_DB: finance_test
+      POSTGRES_USER: finance_test
+      POSTGRES_PASSWORD: finance-test-only
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finance_test -d finance_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  tests:
+    image: finance-system-tests:0.6.0
+    build:
+      context: ./backend
+      target: test
+    profiles: ["test"]
+    environment:
+      FINANCE_ENVIRONMENT: test
+      FINANCE_DATABASE_URL: postgresql+psycopg://finance_test:finance-test-only@db-test:5432/finance_test
+      FINANCE_TIMEZONE: America/Campo_Grande
+    depends_on:
+      db-test:
+        condition: service_healthy
+
+  web-tests:
+    image: node:22-bookworm-slim
+    profiles: ["test"]
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    command: sh -c "npm ci && npm test && npm run build"
+
+volumes:
+  finance_postgres_data:

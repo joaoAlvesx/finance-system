@@ -1,0 +1,7 @@
+# Adicionar finance.example.com à lista de domínios da regra one_factor
+# já existente em access_control.rules. Não criar uma segunda regra conflitante.
+access_control:
+  rules:
+    - domain:
+        - finance.example.com
+      policy: one_factor
